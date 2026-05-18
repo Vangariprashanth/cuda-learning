@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -e
+
+echo "Updating system..."
+apt update
+
+echo "Installing core tools..."
+apt install -y \
+    build-essential \
+    cmake \
+    git \
+    tmux \
+    htop \
+    nvtop
+
+echo "Installing PCL..."
+apt install -y \
+    libpcl-dev \
+    pcl-tools \
+    libeigen3-dev \
+    libvtk7-dev
+
+echo "Done."
