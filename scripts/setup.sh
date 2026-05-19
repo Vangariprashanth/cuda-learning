@@ -12,8 +12,12 @@ apt install -y \
     git \
     tmux \
     htop \
-    nvtop \
-    nsight-systems-cli
+    nvtop 
+
+echo "Installing profiling tools..."
+apt install -y \
+    nsight-systems \
+    nsight-compute
 
 echo "Installing PCL..."
 apt install -y \
