@@ -1,0 +1,39 @@
+# Build outputs
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# Generated profiling and run artifacts
+reports/
+fps_profile_bundle.tar.gz
+fps_profile_bundle/
+*.nsys-rep
+*.qdstrm
+*.sqlite
+*_stats.txt
+*.log
+sphere.pcd
+sphere_fps.pcd
+
+# Binaries
+*.exe
+*.out
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+*.a
+*.lib
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
