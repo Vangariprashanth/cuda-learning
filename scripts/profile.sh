@@ -9,8 +9,30 @@ REPORT_NAME="fps_nsys"
 REPORT_BASE="${REPORT_DIR}/${REPORT_NAME}"
 BUNDLE_PATH="${REPORT_DIR}/fps_profile_bundle.tar.gz"
 
-if ! command -v nsys >/dev/null 2>&1; then
-    echo "nsys was not found. Install Nsight Systems CLI or load the CUDA/Nsight module on the server." >&2
+NSYS_BIN="${NSYS_BIN:-}"
+if [[ -z "${NSYS_BIN}" ]]; then
+    if command -v nsys >/dev/null 2>&1; then
+        NSYS_BIN="$(command -v nsys)"
+    elif compgen -G "/opt/nvidia/nsight-systems/*/target-linux-x64/nsys" >/dev/null; then
+        NSYS_BIN="$(ls -1 /opt/nvidia/nsight-systems/*/target-linux-x64/nsys | tail -n 1)"
+    fi
+fi
+
+if [[ -z "${NSYS_BIN}" || ! -x "${NSYS_BIN}" ]]; then
+    cat >&2 <<'EOF'
+nsys was not found on this server/container.
+
+Try these on the server:
+  command -v nsys
+  find /opt /usr/local/cuda -name nsys -type f 2>/dev/null
+  module avail nsight 2>/dev/null
+
+If your cluster uses modules, load Nsight Systems, for example:
+  module load nsight-systems
+
+If nsys exists but is not on PATH, run this script with:
+  NSYS_BIN=/full/path/to/nsys bash scripts/profile.sh
+EOF
     exit 1
 fi
 
@@ -32,7 +54,7 @@ fi
 
 (
     cd "${BUILD_DIR}"
-    nsys profile \
+    "${NSYS_BIN}" profile \
         --trace=cuda,nvtx,osrt \
         --sample=cpu \
         --stats=true \
@@ -41,7 +63,7 @@ fi
         ./fps
 ) 2>&1 | tee "${REPORT_BASE}_stats.txt"
 
-nsys stats "${REPORT_BASE}.nsys-rep" >> "${REPORT_BASE}_stats.txt"
+"${NSYS_BIN}" stats "${REPORT_BASE}.nsys-rep" >> "${REPORT_BASE}_stats.txt"
 
 tar -czf "${BUNDLE_PATH}" \
     -C "${REPORT_DIR}" "${REPORT_NAME}.nsys-rep" "${REPORT_NAME}_stats.txt" \
