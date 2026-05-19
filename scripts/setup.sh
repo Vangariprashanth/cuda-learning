@@ -19,6 +19,6 @@ apt install -y \
     libpcl-dev \
     pcl-tools \
     libeigen3-dev \
-    libvtk7-dev
+    libvtk9-dev
 
 echo "Done."
