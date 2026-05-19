@@ -12,7 +12,8 @@ apt install -y \
     git \
     tmux \
     htop \
-    nvtop
+    nvtop \
+    nsight-systems-cli
 
 echo "Installing PCL..."
 apt install -y \
