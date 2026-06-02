@@ -25,17 +25,16 @@ WHY pybind11 OVER ctypes:
 */
 
 #include <torch/extension.h>
+#include <cuda_runtime.h>
 #include <vector>
 #include <stdexcept>
 
 // Declaration of the CUDA function defined in fps_cuda.cu
 extern "C" void fps_cuda(
-    const float* points_d,
-    int*         sampled_idx_d,
+    const float *points_d,
+    int *sampled_idx_d,
     int N, int K,
-    float* timing_ms_out
-);
-
+    float *timing_ms_out);
 
 // ─── MAIN BINDING FUNCTION ────────────────────────────────────
 // Called from Python as: fps_cuda_ext.fps(points, K)
@@ -45,30 +44,30 @@ extern "C" void fps_cuda(
 // returns: dict with 'indices' (K,) int32 and 'sampled' (K, 3) float32
 std::vector<torch::Tensor> fps_forward(
     torch::Tensor points,
-    int K
-) {
+    int K)
+{
     // ── Validation ─────────────────────────────────────────────
     TORCH_CHECK(points.is_cuda(),
-        "fps: points must be a CUDA tensor. Got CPU tensor. "
-        "Call points = points.cuda() first.");
+                "fps: points must be a CUDA tensor. Got CPU tensor. "
+                "Call points = points.cuda() first.");
 
     TORCH_CHECK(points.dtype() == torch::kFloat32,
-        "fps: points must be float32. Got ", points.dtype(),
-        ". Call points = points.float() first.");
+                "fps: points must be float32. Got ", points.dtype(),
+                ". Call points = points.float() first.");
 
     TORCH_CHECK(points.dim() == 2 && points.size(1) == 3,
-        "fps: expected shape (N, 3), got ", points.sizes());
+                "fps: expected shape (N, 3), got ", points.sizes());
 
     TORCH_CHECK(points.is_contiguous(),
-        "fps: points must be contiguous. Call points = points.contiguous() first.");
+                "fps: points must be contiguous. Call points = points.contiguous() first.");
 
     int N = points.size(0);
     TORCH_CHECK(K <= N,
-        "fps: K=", K, " > N=", N, ". Cannot sample more points than exist.");
+                "fps: K=", K, " > N=", N, ". Cannot sample more points than exist.");
     TORCH_CHECK(K > 0, "fps: K must be positive.");
 
     // ── Allocate output tensors on the same device ─────────────
-    auto options_int   = torch::TensorOptions().dtype(torch::kInt32).device(points.device());
+    auto options_int = torch::TensorOptions().dtype(torch::kInt32).device(points.device());
     auto options_float = torch::TensorOptions().dtype(torch::kFloat32).device(points.device());
 
     torch::Tensor indices = torch::zeros({K}, options_int);
@@ -78,7 +77,7 @@ std::vector<torch::Tensor> fps_forward(
         points.data_ptr<float>(),
         indices.data_ptr<int>(),
         N, K,
-        nullptr  // no per-step timing in fast path
+        nullptr // no per-step timing in fast path
     );
 
     // Synchronize to ensure kernel completion before returning
@@ -92,14 +91,13 @@ std::vector<torch::Tensor> fps_forward(
     return {indices, sampled};
 }
 
-
 // ─── TIMED VERSION — for profiling ───────────────────────────
 // Same as fps_forward but returns per-iteration timing.
 // Use this in your profiling scripts, not in production.
 std::vector<torch::Tensor> fps_forward_timed(
     torch::Tensor points,
-    int K
-) {
+    int K)
+{
     TORCH_CHECK(points.is_cuda(), "fps: points must be CUDA tensor");
     TORCH_CHECK(points.dtype() == torch::kFloat32, "fps: need float32");
     TORCH_CHECK(points.dim() == 2 && points.size(1) == 3, "fps: need (N,3)");
@@ -117,25 +115,24 @@ std::vector<torch::Tensor> fps_forward_timed(
         points.data_ptr<float>(),
         indices.data_ptr<int>(),
         N, K,
-        timing_ms.data()
-    );
+        timing_ms.data());
     cudaDeviceSynchronize();
 
     torch::Tensor sampled = points.index_select(0, indices.to(torch::kLong));
 
     // Return timing as a CPU tensor
     torch::Tensor timing_tensor = torch::from_blob(
-        timing_ms.data(), {K}, torch::kFloat32
-    ).clone();  // clone because from_blob doesn't own the memory
+                                      timing_ms.data(), {K}, torch::kFloat32)
+                                      .clone(); // clone because from_blob doesn't own the memory
 
     return {indices, sampled, timing_tensor};
 }
 
-
 // ─── MODULE REGISTRATION ──────────────────────────────────────
 // PYBIND11_MODULE: creates the Python module named "fps_cuda_ext"
 // The m.def calls register Python-callable functions.
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
+{
     m.doc() = "CUDA FPS — Farthest Point Sampling GPU Extension";
 
     m.def("fps",
