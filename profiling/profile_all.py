@@ -86,29 +86,37 @@ def reset_peak():
 def get_gpu_peaks():
     prop = torch.cuda.get_device_properties(0)
 
-    mem_clock = getattr(prop, "memory_clock_rate", 0)
-    mem_bus   = getattr(prop, "memory_bus_width", 256)
-    gpu_clock = getattr(prop, "clock_rate", 0)
+    peak_bw_gbps = (
+        2.0 *
+        prop.memory_clock_rate *
+        (prop.memory_bus_width / 8)
+    ) / 1e6
 
-    # FIX: correct VRAM field (your original may break depending on torch version)
-    vram = getattr(prop, "total_memory", 0)
+    cores_per_sm_map = {
+        8: 128,
+        7: 64,
+        6: 64,
+        5: 128,
+    }
 
-    peak_bw_gbps = 2.0 * mem_clock * (mem_bus / 8) / 1e6
-
-    cores_per_sm_map = {8: 128, 7: 64, 6: 64, 5: 128}
     cores_per_sm = cores_per_sm_map.get(prop.major, 128)
 
-    peak_tflops = (prop.multi_processor_count * cores_per_sm *
-                   gpu_clock * 2) / 1e9
+    peak_tflops = (
+        prop.multi_processor_count *
+        cores_per_sm *
+        prop.clock_rate *
+        2
+    ) / 1e9
 
     return {
         "name": prop.name,
-        "vram_gb": vram / 1e9,
+        "vram_gb": prop.total_memory / 1e9,
         "sm_count": prop.multi_processor_count,
         "peak_bw_gbps": peak_bw_gbps,
         "peak_tflops_fp32": peak_tflops,
         "compute_cap": f"{prop.major}.{prop.minor}",
     }
+
 
 # ══════════════════════════════════════════════════════════════
 # SECTION 2: FPS PROFILING
